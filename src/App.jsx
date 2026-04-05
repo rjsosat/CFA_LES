@@ -103,38 +103,40 @@ export default function App() {
         <h1 className="text-3xl font-extrabold text-slate-800 tracking-tight mb-6">Level II Tracker</h1>
         
         {/* Countdown Card */}
-        <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl p-6 shadow-lg shadow-blue-500/30 flex items-center justify-between">
-          <div className="flex items-center text-white">
-            <Calendar size={32} className="mr-4 opacity-80" />
-            
-            {isEditingDate ? (
-              <div className="flex flex-col">
-                <p className="text-blue-100 text-sm font-semibold uppercase tracking-wider mb-1">Set Date</p>
-                <div className="flex gap-2">
-                  <input 
-                    type="date"
-                    className="bg-white/20 border border-white/30 text-white rounded-lg px-3 py-1 outline-none focus:bg-white/30"
-                    placeholder="YYYY-MM-DD"
-                    value={tempDate}
-                    onChange={handleDateChange}
-                  />
-                  <button onClick={handleSaveDate} className="bg-white text-blue-600 px-3 py-1 rounded-lg font-bold">Save</button>
+        {currentTab === 'dashboard' && (
+          <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl p-6 shadow-lg shadow-blue-500/30 flex items-center justify-between">
+            <div className="flex items-center text-white">
+              <Calendar size={32} className="mr-4 opacity-80" />
+              
+              {isEditingDate ? (
+                <div className="flex flex-col">
+                  <p className="text-blue-100 text-sm font-semibold uppercase tracking-wider mb-1">Set Date</p>
+                  <div className="flex gap-2">
+                    <input 
+                      type="date"
+                      className="bg-white/20 border border-white/30 text-white rounded-lg px-3 py-1 outline-none focus:bg-white/30"
+                      placeholder="YYYY-MM-DD"
+                      value={tempDate}
+                      onChange={handleDateChange}
+                    />
+                    <button onClick={handleSaveDate} className="bg-white text-blue-600 px-3 py-1 rounded-lg font-bold">Save</button>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <button onClick={() => { setTempDate(examDateStr); setIsEditingDate(true); }} className="text-left">
-                {daysLeft !== null ? (
-                  <>
-                    <h2 className="text-4xl font-black">{Math.max(0, daysLeft)} <span className="text-xl font-medium opacity-80">Days</span></h2>
-                    <p className="text-blue-100 text-sm font-semibold uppercase tracking-wider mt-1">Until Exam Day</p>
-                  </>
-                ) : (
-                  <h2 className="text-xl font-bold bg-white/20 px-4 py-2 rounded-lg backdrop-blur-sm shadow-sm transition hover:bg-white/30">Set Exam Date</h2>
-                )}
-              </button>
-            )}
+              ) : (
+                <button onClick={() => { setTempDate(examDateStr); setIsEditingDate(true); }} className="text-left">
+                  {daysLeft !== null ? (
+                    <>
+                      <h2 className="text-4xl font-black">{Math.max(0, daysLeft)} <span className="text-xl font-medium opacity-80">Days</span></h2>
+                      <p className="text-blue-100 text-sm font-semibold uppercase tracking-wider mt-1">Until Exam Day</p>
+                    </>
+                  ) : (
+                    <h2 className="text-xl font-bold bg-white/20 px-4 py-2 rounded-lg backdrop-blur-sm shadow-sm transition hover:bg-white/30">Set Exam Date</h2>
+                  )}
+                </button>
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <main className="max-w-2xl mx-auto px-4 mt-6">
@@ -152,7 +154,10 @@ export default function App() {
             />
           </>
         ) : (
-          <StudySessionsView curriculumData={curriculumData} />
+          <StudySessionsView 
+            curriculumData={curriculumData} 
+            onSessionLogged={(subsectionId) => handleToggleSubsection(subsectionId, true)}
+          />
         )}
       </main>
 
