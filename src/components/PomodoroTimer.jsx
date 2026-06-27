@@ -64,7 +64,8 @@ export default function PomodoroTimer({ curriculumData, onPomodoroComplete }) {
   const [selectedSubsectionId, setSelectedSubsectionId] = useState('');
 
   const intervalRef = useRef(null);
-  const audioRef = useRef(null);
+  const endTimeRef = useRef(null);
+  const advancePhaseRef = useRef(null);
 
   const activeSection = curriculumData?.find(s => s.id === selectedSectionId);
   const activeModule = activeSection?.modules?.find(m => m.id === selectedModuleId);
@@ -132,22 +133,74 @@ export default function PomodoroTimer({ curriculumData, onPomodoroComplete }) {
     }
   }, [phase, completedPomodoros, settings, stopTimer, playAlarm, onPomodoroComplete, selectedSubsectionId]);
 
+  // Keep a live ref to advancePhase so the interval/visibility handlers
+  // always call the latest version without re-creating the timer.
   useEffect(() => {
-    if (isRunning) {
-      intervalRef.current = setInterval(() => {
-        setSecondsLeft(prev => {
-          if (prev <= 1) {
-            advancePhase();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
+    advancePhaseRef.current = advancePhase;
+  }, [advancePhase]);
+
+  // Deadline-based countdown. Instead of decrementing a counter (which mobile
+  // browsers freeze when the screen turns off), we anchor to an absolute end
+  // time and derive the remaining seconds from the real clock. On returning to
+  // the tab (e.g. screen back on) we recompute immediately, so the timer stays
+  // accurate even after being backgrounded.
+  useEffect(() => {
+    if (!isRunning) return;
+
+    // Anchor the deadline from whatever is currently on the clock.
+    endTimeRef.current = Date.now() + secondsLeft * 1000;
+
+    const tick = () => {
+      const remaining = Math.max(0, Math.round((endTimeRef.current - Date.now()) / 1000));
+      setSecondsLeft(remaining);
+      if (remaining <= 0) {
+        advancePhaseRef.current?.();
+      }
+    };
+
+    intervalRef.current = setInterval(tick, 250);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') tick();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [isRunning, advancePhase]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRunning]);
+
+  // Screen Wake Lock: keep the screen awake while a timer is actively running
+  // and the app is in the foreground. The OS releases the lock when the page is
+  // hidden, so we re-acquire it whenever the tab becomes visible again.
+  useEffect(() => {
+    if (!isRunning) return;
+    let wakeLock = null;
+
+    const requestWakeLock = async () => {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLock = await navigator.wakeLock.request('screen');
+        }
+      } catch (_) { /* user agent may reject; deadline logic still keeps time */ }
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') requestWakeLock();
+    };
+
+    requestWakeLock();
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      if (wakeLock) {
+        try { wakeLock.release(); } catch (_) { /* already released */ }
+      }
+    };
+  }, [isRunning]);
 
   const toggleTimer = () => setIsRunning(prev => !prev);
 
@@ -248,6 +301,11 @@ export default function PomodoroTimer({ curriculumData, onPomodoroComplete }) {
             <span className="text-white/60 text-sm font-semibold mt-1">
               {isRunning ? 'In progress...' : 'Paused'}
             </span>
+            {isRunning && (
+              <span className="text-white/40 text-[11px] font-medium mt-1 px-6 text-center leading-tight">
+                Keeps time even if your screen turns off
+              </span>
+            )}
           </div>
         </div>
 
